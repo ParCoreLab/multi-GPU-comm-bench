@@ -17,7 +17,7 @@ static struct parser_doc parser_doc;
 
 clock_t start, endparse, cusetup, endwarmup, enditer, end;
 
-void bench_iter(int nDev, void *sendbuff, void **recvbuff, int size,
+void bench_iter(int nDev, void *sendbuff, void *recvbuff, int size,
                 ncclDataType_t data_type, ncclComm_t comm, cudaStream_t s);
 
 static uint64_t getHostHash(const char *string) {
@@ -88,7 +88,7 @@ int main(int argc, char *argv[]) {
   ncclUniqueId id;
   ncclComm_t comm;
   void *sendbuff;
-  void *recvbuff[nDev];
+  void *recvbuff;
   cudaStream_t s;
 
   REPORT("NDEV: %d\n", nDev);
@@ -103,8 +103,7 @@ int main(int argc, char *argv[]) {
 
   CUDACHECK(cudaSetDevice(localRank));
   CUDACHECK(cudaMalloc(&sendbuff, size * data_size));
-  for (int i = 0; i < nDev; i++)
-    CUDACHECK(cudaMalloc(&(recvbuff[i]), size * data_size));
+  CUDACHECK(cudaMalloc(&(recvbuff), size * data_size));
   CUDACHECK(cudaStreamCreate(&s));
 
   random_fill(sendbuff, size * data_size);
@@ -129,8 +128,7 @@ int main(int argc, char *argv[]) {
   // free device buffers
 
   CUDACHECK(cudaFree(sendbuff));
-  for (int i = 0; i < nDev; i++)
-    CUDACHECK(cudaFree(recvbuff[i]));
+  CUDACHECK(cudaFree(recvbuff));
 
   // finalizing NCCL
   ncclCommDestroy(comm);
@@ -159,15 +157,13 @@ int main(int argc, char *argv[]) {
   return 0;
 }
 
-void bench_iter(int nDev, void *sendbuff, void **recvbuff, int size,
+void bench_iter(int nDev, void *sendbuff, void *recvbuff, int size,
                 ncclDataType_t data_type, ncclComm_t comm, cudaStream_t s) {
   // calling NCCL communication API. Group API is required when using
   // multiple devices per thread
   NCCLCHECK(ncclGroupStart());
-  for (int i = 0; i < nDev; ++i) {
-    NCCLCHECK(ncclSend(sendbuff, size, data_type, i, comm, s));
-    NCCLCHECK(ncclRecv(recvbuff[i], size, data_type, i, comm, s));
-  }
+  NCCLCHECK(ncclAllReduce((const void *)sendbuff, (void *)recvbuff, size,
+                          data_type, ncclSum, comm, s));
   NCCLCHECK(ncclGroupEnd());
 
   // synchronizing on CUDA streams to wait for completion of NCCL operation

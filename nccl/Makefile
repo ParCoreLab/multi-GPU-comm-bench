@@ -1,4 +1,4 @@
-M_TARGETS := single_thread_all_to_all single_thread_all_reduce mpi_all_to_all
+M_TARGETS := single_thread_all_to_all single_thread_all_reduce mpi_all_to_all mpi_all_reduce
 
 
 all: clean build
