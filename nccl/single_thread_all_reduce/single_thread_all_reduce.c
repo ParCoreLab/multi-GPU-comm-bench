@@ -19,7 +19,8 @@ void bench_iter(int nDev, void **sendbuff, void **recvbuff, int size,
 
 int main(int argc, char *argv[]) {
   start = clock();
-  default_parser_doc("Single thread all to all with nccl", "1", &parser_doc);
+  build_parser_doc("Single thread all reduce with nccl", "", "1",
+                   "egencer20@ku.edu.tr", &parser_doc);
   argument_parse(&opts, &parser_doc, argc, argv);
 
   int nDev = opts.num_gpus;

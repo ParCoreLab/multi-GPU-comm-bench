@@ -77,7 +77,3 @@ void build_parser_doc(char *doc, char *args_doc, char *version, char *email,
   strncpy(parser->version, version, sizeof(parser->version) - 1);
   strncpy(parser->email, email, sizeof(parser->email) - 1);
 }
-
-void default_parser_doc(char *doc, char *version, struct parser_doc *parser) {
-  build_parser_doc(doc, "-n NUM_GPUS", version, "egencer20@ku.edu.tr", parser);
-}

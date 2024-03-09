@@ -38,5 +38,3 @@ static struct argp argp;
 
 void build_parser_doc(char *doc, char *args_doc, char *version, char *email,
                       struct parser_doc *parser);
-
-void default_parser_doc(char *doc, char *version, struct parser_doc *parser);

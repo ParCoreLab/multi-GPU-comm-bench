@@ -41,7 +41,8 @@ static void getHostName(char *hostname, int maxlen) {
 
 int main(int argc, char *argv[]) {
   start = clock();
-  default_parser_doc("MPI all to all with nccl", "1", &parser_doc);
+  build_parser_doc("MPI all to all with nccl", "", "1", "egencer20@ku.edu.tr",
+                   &parser_doc);
   argument_parse(&opts, &parser_doc, argc, argv);
 
   int myRank, nRanks, localRank = 0;
