@@ -1,6 +1,5 @@
 #include "random_fill.h"
-#include "../cuda_util/cuda_util.h"
-#include "nccl.h"
+#include "cuda_util.h"
 #include <fcntl.h>
 #include <stdio.h>
 #include <sys/stat.h>

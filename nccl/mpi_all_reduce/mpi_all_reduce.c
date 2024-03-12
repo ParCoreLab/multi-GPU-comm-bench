@@ -1,8 +1,8 @@
-#include "../cuda_util/cuda_util.h"
-#include "../cuda_util/random_fill.h"
-#include "../util/argparse.h"
-#include "../util/mpi_util.h"
-#include "../util/simple_utils.h"
+#include "../../cuda_util/cuda_util.h"
+#include "../../cuda_util/random_fill.h"
+#include "../../util/argparse.h"
+#include "../../util/mpi_util.h"
+#include "../../util/simple_utils.h"
 #include "mpi.h"
 #include "nccl.h"
 #include <stdint.h>

@@ -1,4 +1,19 @@
-include ../nccl_include.mk
+CUDA_PATH := $(shell echo $$CUDA_PATH)
+
+ifeq ($(strip $(CUDA_PATH)),)
+    $(warning CUDA_PATH not set, using /opt/cuda by default)
+    CUDA_PATH := /opt/cuda
+endif
+
+
+
+CUDA_INCLUDE ?= $(CUDA_PATH)/include
+CUDA_LIB ?= $(CUDA_PATH)/lib
+
+INCLUDES := -I$(NCCL_INCLUDE) -I$(CUDA_INCLUDE)
+LIBS := -L$(NCCL_LIB) -L$(CUDA_LIB)
+
+LD := -lnuma -lcudart
 
 SRCS := $(wildcard *.c)
 OBJS := $(SRCS:.c=.o)
