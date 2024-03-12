@@ -125,13 +125,14 @@ int main(int argc, char *argv[]) {
 
   enditer = clock();
 
-  #ifdef DEBUG
+#ifdef DEBUG
   _test = malloc(size * data_size);
-  for(int i = 0; i < nDev; i++){
-  if(i == myRank) continue;
-  CUDACHECK(
-      cudaMemcpy(_test, recvbuff[i], size * data_size, cudaMemcpyDeviceToHost));
-  REPORT("CUDA RECV INT: %d FROM %d\n", _test[0], i);
+  for (int i = 0; i < nDev; i++) {
+    if (i == myRank)
+      continue;
+    CUDACHECK(cudaMemcpy(_test, recvbuff[i], size * data_size,
+                         cudaMemcpyDeviceToHost));
+    REPORT("CUDA RECV INT: %d FROM %d\n", _test[0], i);
   }
   free(_test);
 #endif
@@ -169,17 +170,35 @@ int main(int argc, char *argv[]) {
 void bench_iter(int nDev, void *sendbuff, void **recvbuff, int size,
                 MPI_Datatype data_type, int myRank) {
 
-  MPI_Request reqs[nDev - 1];
-  for(int i = 0; i < nDev - 1; i++){
-    memcpy(reqs[i],  MPI_REQUEST_NULL, sizeof(MPI_Request));
+  /* :/ DOES NOT WORK IN MPI 4!
+    MPI_Request reqs[nDev - 1];
+    for(int i = 0; i < nDev - 1; i++){
+      memcpy(reqs[i],  MPI_REQUEST_NULL, sizeof(MPI_Request));
+    }
+    for (int i = 0; i < nDev; ++i) {
+      if (i == myRank)
+        continue;
+      int j = i;
+      if(i > myRank) j --;
+      MPICHECK(MPI_Isendrecv(sendbuff, size, data_type, i, 0, recvbuff[i], size,
+                             data_type, i, 0, MPI_COMM_WORLD, &(reqs[j])));
+    }
+    MPICHECK(MPI_Waitall(nDev - 1, reqs, MPI_STATUSES_IGNORE));
+  */
+  MPI_Request reqs[2 * (nDev - 1)];
+  for (int i = 0; i < 2 * (nDev - 1); i++) {
+    memcpy(reqs[i], MPI_REQUEST_NULL, sizeof(MPI_Request));
   }
   for (int i = 0; i < nDev; ++i) {
     if (i == myRank)
       continue;
     int j = i;
-    if(i > myRank) j --;
-    MPICHECK(MPI_Isendrecv(sendbuff, size, data_type, i, 0, recvbuff[i], size,
-                           data_type, i, 0, MPI_COMM_WORLD, &(reqs[j])));
+    if (i > myRank)
+      j--;
+    MPICHECK(
+        MPI_Isend(sendbuff, size, data_type, i, 0, MPI_COMM_WORLD, &(reqs[j])));
+    MPICHECK(MPI_Irecv(recvbuff[i], size, data_type, i, 0, MPI_COMM_WORLD,
+                       &(reqs[nDev - 1 + j])));
   }
-  MPICHECK(MPI_Waitall(nDev - 1, reqs, MPI_STATUSES_IGNORE));
+  MPICHECK(MPI_Waitall(2 * (nDev - 1), reqs, MPI_STATUSES_IGNORE));
 }
