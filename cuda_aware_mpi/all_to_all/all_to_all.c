@@ -187,7 +187,7 @@ void bench_iter(int nDev, void *sendbuff, void **recvbuff, int size,
   */
   MPI_Request reqs[2 * (nDev - 1)];
   for (int i = 0; i < 2 * (nDev - 1); i++) {
-    memcpy(reqs[i], MPI_REQUEST_NULL, sizeof(MPI_Request));
+    memcpy(&(reqs[i]), MPI_REQUEST_NULL, sizeof(MPI_Request));
   }
   for (int i = 0; i < nDev; ++i) {
     if (i == myRank)
