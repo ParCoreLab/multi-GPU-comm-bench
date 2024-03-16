@@ -1,4 +1,4 @@
-M_TARGETS := all_to_all
+M_TARGETS := all_to_all all_reduce
 
 
 all: clean build
