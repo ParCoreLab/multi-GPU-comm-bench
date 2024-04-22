@@ -2,6 +2,7 @@
 #include "cuda_util.h"
 #include <fcntl.h>
 #include <stdio.h>
+#include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -17,5 +18,16 @@ void random_fill(void *pointer, int length) {
   close(fd);
 
   CUDACHECK(cudaMemcpy(pointer, buffer, length, cudaMemcpyHostToDevice));
+  free(buffer);
+}
+
+void random_fill_host(void *pointer, int length) {
+  char *buffer = malloc(sizeof(char) * length);
+
+  int fd = open("/dev/urandom", O_RDONLY);
+  read(fd, buffer, length);
+  close(fd);
+
+  memcpy(pointer, buffer, length);
   free(buffer);
 }
