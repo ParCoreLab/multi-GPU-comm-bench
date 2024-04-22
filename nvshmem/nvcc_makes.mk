@@ -7,8 +7,11 @@ all: $(TARGET)
 $(TARGET): $(OBJS) $(UTIL_OBJS) $(CUDA_UTIL_OBJS)
 	$(CC) -rdc=true -ccbin g++ -gencode=arch=compute_80,code=sm_80  $(CFLAGS) $^ -o $@ $(INCLUDES) $(LIBS) $(LD)
 
-%.o: %.c
+%.o: %.cu
 	$(CC) -rdc=true -ccbin g++ -gencode=arch=compute_80,code=sm_80  $(CFLAGS) -c $< -o $@ $(INCLUDES) $(LIBS)
+
+%.o: %.c
+	$(CC) $(CFLAGS) -c $< -o $@ $(INCLUDES) $(LIBS)
 
 util/%.o: util/%.c
 	$(CC) $(CFLAGS) -c $< -o $@ $(INCLUDES) $(LIBS)
