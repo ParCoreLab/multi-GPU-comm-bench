@@ -3,7 +3,6 @@
 #include "../../util/argparse.h"
 #include "../../util/mpi_util.h"
 #include "../../util/simple_utils.h"
-#include "host/nvshmem_api.h"
 #include "mpi.h"
 #include "nvshmem.h"
 #include "nvshmemx.h"
@@ -27,7 +26,7 @@
 static struct options opts;
 static struct parser_doc parser_doc;
 
-clock_t start, endparse, cusetup, endwarmup, enditer, end;
+clock_t start, endparse, cusetup, endwarmup, enditer, c_end;
 
 void bench_iter(int nDev, void *sendbuff, void **recvbuff, int size,
                 int data_type, cudaStream_t s);
@@ -41,13 +40,16 @@ __global__ void all_to_all_kernel(void *sendbuff, void **recvbuff, int size,
     if (peer != mype) {
       switch (data_type) {
       case options::OPTION_CHAR:
-        nvshmem_char_put(recvbuff[mype], sendbuff, size, peer);
+        nvshmem_char_put((char *)recvbuff[mype], (const char *)sendbuff, size,
+                         peer);
         break;
       case options::OPTION_INT:
-        nvshmem_int_put(recvbuff[mype], sendbuff, size, peer);
+        nvshmem_int_put((int *)recvbuff[mype], (const int *)sendbuff, size,
+                        peer);
         break;
       case options::OPTION_FLOAT:
-        nvshmem_float_put(recvbuff[mype], sendbuff, size, peer);
+        nvshmem_float_put((float *)recvbuff[mype], (const float *)sendbuff,
+                          size, peer);
         break;
       }
     }
@@ -78,7 +80,7 @@ int main(int argc, char *argv[]) {
     break;
   }
 
-  int mype_node, msg;
+  int mype_node;
   cudaStream_t stream;
   MPI_Comm mpi_comm = MPI_COMM_WORLD;
   nvshmemx_init_attr_t attr;
@@ -139,7 +141,7 @@ int main(int argc, char *argv[]) {
 
   MPICHECK(MPI_Finalize());
 
-  end = clock();
+  c_end = clock();
 
 #define CLOCK_CONVERT(x) (((double)x) / CLOCKS_PER_SEC)
 
@@ -157,7 +159,7 @@ int main(int argc, char *argv[]) {
          CLOCK_CONVERT(enditer - endwarmup),
          (CLOCK_CONVERT(enditer - endwarmup)) /
              (opts.iterations > 0 ? opts.iterations : 1),
-         CLOCK_CONVERT(end - enditer), CLOCK_CONVERT(end - start));
+         CLOCK_CONVERT(c_end - enditer), CLOCK_CONVERT(c_end - start));
   return 0;
 }
 
