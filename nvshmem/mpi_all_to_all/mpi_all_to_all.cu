@@ -28,10 +28,10 @@ static struct parser_doc parser_doc;
 
 clock_t start, endparse, cusetup, endwarmup, enditer, c_end;
 
-void bench_iter(int nDev, void *sendbuff, void *recvbuff[], int size,
+void bench_iter(int nDev, void *sendbuff, void *recvbuff, int size,
                 int data_type, cudaStream_t s);
 
-__global__ void all_to_all_kernel(void *sendbuff, void *recvbuff[], int size,
+__global__ void all_to_all_kernel(void *sendbuff, void *recvbuff, int size,
                                   int data_type) {
   int mype = nvshmem_my_pe();
   int npes = nvshmem_n_pes();
@@ -40,16 +40,16 @@ __global__ void all_to_all_kernel(void *sendbuff, void *recvbuff[], int size,
     if (peer != mype) {
       switch (data_type) {
       case options::OPTION_CHAR:
-        nvshmem_char_put((char *)(recvbuff[mype]), (const char *)sendbuff, size,
-                         peer);
+        nvshmem_char_put(((char *)(recvbuff)) + (size * mype),
+                         (const char *)sendbuff, size, peer);
         break;
       case options::OPTION_INT:
-        nvshmem_int_put((int *)(recvbuff[mype]), (const int *)sendbuff, size,
-                        peer);
+        nvshmem_int_put(((int *)(recvbuff)) + (size * mype),
+                        (const int *)sendbuff, size, peer);
         break;
       case options::OPTION_FLOAT:
-        nvshmem_float_put((float *)(recvbuff[mype]), (const float *)sendbuff,
-                          size, peer);
+        nvshmem_float_put(((float *)(recvbuff)) + (size * mype),
+                          (const float *)sendbuff, size, peer);
         break;
       }
     }
@@ -95,7 +95,7 @@ int main(int argc, char *argv[]) {
   int nDev = nRanks;
 
   void *sendbuff;
-  void *recvbuff[nDev];
+  void *recvbuff;
 
   REPORT("NDEV: %d myrank: %d\n", nDev, mype_node);
   report_options(&opts);
@@ -106,8 +106,7 @@ int main(int argc, char *argv[]) {
 
   CUDA_CHECK(cudaMalloc(&(sendbuff), size * data_size));
 
-  for (int i = 0; i < nDev; i++)
-    recvbuff[i] = nvshmem_malloc(data_size * size);
+  recvbuff = nvshmem_malloc(data_size * size * nDev);
 
   void *tmp = malloc(data_size * size);
   memset(tmp, 0, data_size * size);
@@ -136,8 +135,7 @@ int main(int argc, char *argv[]) {
   // free device buffers
 
   CUDA_CHECK(cudaFree(sendbuff));
-  for (int i = 0; i < nDev; i++)
-    nvshmem_free(recvbuff[i]);
+  nvshmem_free(recvbuff);
 
   nvshmem_finalize();
   MPICHECK(MPI_Finalize());
@@ -164,7 +162,7 @@ int main(int argc, char *argv[]) {
   return 0;
 }
 
-void bench_iter(int nDev, void *sendbuff, void *recvbuff[], int size,
+void bench_iter(int nDev, void *sendbuff, void *recvbuff, int size,
                 int data_type, cudaStream_t stream) {
 
   // start the kernel in each iteration
