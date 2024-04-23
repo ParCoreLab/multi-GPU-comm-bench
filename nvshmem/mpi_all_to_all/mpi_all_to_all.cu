@@ -113,10 +113,13 @@ int main(int argc, char *argv[]) {
   memset(tmp, 0, data_size * size);
   random_fill_host(tmp, data_size * size);
 
-  CUDA_CHECK(cudaMemcpyAsync(send_buffer, tmp, data_size * size,
-                             cudaMemcpyHostToHost, stream));
-  nvshmem_barrier_all();
+  nvshmemx_putmem_on_stream(send_buffer, tmp, data_size * size, mype_node,
+                            stream);
+
+  // CUDA_CHECK(cudaMemcpyAsync(send_buffer, tmp, data_size * size,
+  //                            cudaMemcpyHostToHost, stream));
   CUDA_CHECK(cudaStreamSynchronize(stream));
+  nvshmem_barrier_all();
 
   free(tmp);
 
