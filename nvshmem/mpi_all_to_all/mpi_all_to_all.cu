@@ -104,7 +104,7 @@ int main(int argc, char *argv[]) {
   CUDA_CHECK(cudaSetDevice(mype_node));
   CUDA_CHECK(cudaStreamCreate(&stream));
 
-  sendbuff = nvshmem_malloc(data_size * size);
+  CUDA_CHECK(cudaMalloc(&(sendbuff), size * data_size));
 
   for (int i = 0; i < nDev; i++)
     recvbuff[i] = nvshmem_malloc(data_size * size);
@@ -114,7 +114,7 @@ int main(int argc, char *argv[]) {
   random_fill_host(tmp, data_size * size);
 
   CUDA_CHECK(cudaMemcpyAsync(sendbuff, tmp, data_size * size,
-                             cudaMemcpyHostToHost, stream));
+                             cudaMemcpyHostToDevice, stream));
   CUDA_CHECK(cudaStreamSynchronize(stream));
 
   free(tmp);
@@ -135,7 +135,7 @@ int main(int argc, char *argv[]) {
 
   // free device buffers
 
-  nvshmem_free(sendbuff);
+  CUDA_CHECK(cudaFree(sendbuff));
   for (int i = 0; i < nDev; i++)
     nvshmem_free(recvbuff[i]);
 
