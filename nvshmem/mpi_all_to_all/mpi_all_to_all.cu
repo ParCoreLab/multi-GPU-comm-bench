@@ -3,7 +3,6 @@
 #include "../../util/argparse.h"
 #include "../../util/mpi_util.h"
 #include "../../util/simple_utils.h"
-#include "host/nvshmem_coll_api.h"
 #include "mpi.h"
 #include "nvshmem.h"
 #include "nvshmemx.h"
@@ -110,12 +109,12 @@ int main(int argc, char *argv[]) {
   for (int i = 0; i < nDev; i++)
     recvbuff[i] = nvshmem_malloc(data_size * size);
 
-  // void *tmp = malloc(data_size * size);
-  // memset(tmp, 0, data_size * size);
-  random_fill_host(send_buffer, data_size * size);
+  void *tmp = malloc(data_size * size);
+  memset(tmp, 0, data_size * size);
+  random_fill_host(tmp, data_size * size);
 
-  // CUDA_CHECK(cudaMemcpyAsync(send_buffer, tmp, data_size * size,
-  //                            cudaMemcpyHostToDevice, stream));
+  CUDA_CHECK(cudaMemcpyAsync(send_buffer, tmp, data_size * size,
+                             cudaMemcpyHostToHost, stream));
   nvshmem_barrier_all();
   CUDA_CHECK(cudaStreamSynchronize(stream));
 
