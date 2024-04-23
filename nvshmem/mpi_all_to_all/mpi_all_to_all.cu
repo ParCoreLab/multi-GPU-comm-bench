@@ -95,7 +95,7 @@ int main(int argc, char *argv[]) {
   int nDev = nRanks;
 
   void *sendbuff;
-  void *recvbuff[nRanks];
+  void *recvbuff[nDev];
 
   REPORT("NDEV: %d myrank: %d\n", nDev, mype_node);
   report_options(&opts);
@@ -104,7 +104,7 @@ int main(int argc, char *argv[]) {
   CUDA_CHECK(cudaSetDevice(mype_node));
   CUDA_CHECK(cudaStreamCreate(&stream));
 
-  void *send_buffer = nvshmem_malloc(data_size * size);
+  sendbuff = nvshmem_malloc(data_size * size);
 
   for (int i = 0; i < nDev; i++)
     recvbuff[i] = nvshmem_malloc(data_size * size);
@@ -113,13 +113,9 @@ int main(int argc, char *argv[]) {
   memset(tmp, 0, data_size * size);
   random_fill_host(tmp, data_size * size);
 
-  nvshmemx_putmem_on_stream(send_buffer, tmp, data_size * size, mype_node,
-                            stream);
-
-  // CUDA_CHECK(cudaMemcpyAsync(send_buffer, tmp, data_size * size,
-  //                            cudaMemcpyHostToHost, stream));
+  CUDA_CHECK(cudaMemcpyAsync(sendbuff, tmp, data_size * size,
+                             cudaMemcpyHostToHost, stream));
   CUDA_CHECK(cudaStreamSynchronize(stream));
-  nvshmem_barrier_all();
 
   free(tmp);
 
@@ -143,6 +139,7 @@ int main(int argc, char *argv[]) {
   for (int i = 0; i < nDev; i++)
     nvshmem_free(recvbuff[i]);
 
+  nvshmem_finalize();
   MPICHECK(MPI_Finalize());
 
   c_end = clock();
