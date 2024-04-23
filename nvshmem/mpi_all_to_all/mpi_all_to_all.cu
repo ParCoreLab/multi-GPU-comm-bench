@@ -6,6 +6,7 @@
 #include "mpi.h"
 #include "nvshmem.h"
 #include "nvshmemx.h"
+#include <cstdlib>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -13,6 +14,7 @@
 #include <time.h>
 #include <unistd.h>
 
+#define DEBUG 1
 #define CUDA_CHECK(stmt)                                                       \
   do {                                                                         \
     cudaError_t result = (stmt);                                               \
@@ -129,6 +131,27 @@ int main(int argc, char *argv[]) {
   for (int iter = 0; iter < opts.iterations; iter++) {
     bench_iter(nDev, sendbuff, recvbuff, size, data_type, stream);
   }
+
+  CUDA_CHECK(cudaStreamSynchronize(stream));
+
+#ifdef DEBUG
+
+  void *local_sendbuff = malloc(size * data_size);
+  void *local_recvbuff = malloc(size * data_size * nDev);
+
+  CUDACHECK(cudaMemcpyAsync(local_sendbuff, sendbuff, size * data_size,
+                            cudaMemcpyDeviceToHost, stream));
+  CUDACHECK(cudaMemcpyAsync(local_recvbuff, recvbuff, size * data_size * nDev,
+                            cudaMemcpyDeviceToHost, stream));
+  CUDA_CHECK(cudaStreamSynchronize(stream));
+
+  REPORT("My data: %d\n", ((int *)local_sendbuff)[0]);
+  for (int k = 0; k < nDev; k++) {
+    REPORT("Received from peer %d <-> %d}\n", k,
+           ((int *)(((char *)recvbuff) + (k * size * data_size)))[0]);
+  }
+
+#endif
 
   enditer = clock();
 
