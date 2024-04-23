@@ -148,7 +148,7 @@ int main(int argc, char *argv[]) {
   REPORT("My data: %d\n", ((int *)local_sendbuff)[0]);
   for (int k = 0; k < nDev; k++) {
     REPORT("Received from peer %d <-> %d}\n", k,
-           ((int *)(((char *)recvbuff) + (k * size * data_size)))[0]);
+           ((int *)(((char *)local_recvbuff) + (k * size * data_size)))[0]);
   }
 
 #endif
