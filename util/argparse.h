@@ -1,3 +1,6 @@
+#ifdef __cplusplus
+extern "C" {
+#endif
 #include <argp.h>
 
 #define MAX_DOC_LEN 256
@@ -38,3 +41,7 @@ static struct argp argp;
 
 void build_parser_doc(char *doc, char *args_doc, char *version, char *email,
                       struct parser_doc *parser);
+
+#ifdef __cplusplus
+}
+#endif
