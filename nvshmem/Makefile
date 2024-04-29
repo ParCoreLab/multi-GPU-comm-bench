@@ -1,4 +1,4 @@
-M_TARGETS := mpi_all_to_all mpi_all_to_all_builtin
+M_TARGETS := mpi_all_to_all mpi_all_to_all_builtin mpi_broadcast mpi_broadcast_kernel mpi_max_reduce
 
 
 all: clean build
