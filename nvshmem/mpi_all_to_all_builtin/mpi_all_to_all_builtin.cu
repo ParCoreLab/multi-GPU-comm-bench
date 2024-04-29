@@ -7,6 +7,7 @@
 #include "nvshmem.h"
 #include "nvshmemx.h"
 #include <cstdlib>
+#include <cstring>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -91,15 +92,22 @@ int main(int argc, char *argv[]) {
   sendbuff = nvshmem_malloc(data_size * size * nDev);
 
   void *tmp = malloc(data_size * size);
+  void *tmp_long = malloc(data_size * size * nDev);
   memset(tmp, 0, data_size * size);
+  memset(tmp_long, 0, data_size * size * nDev);
   random_fill_host(tmp, data_size * size);
 
-  nvshmemx_putmem_on_stream(MY_SOURCE(sendbuff, mype_node, (data_size * size)),
-                            tmp, data_size * size, mype_node, stream);
+  for (int i = 0; i < nDev; i++) {
+    memcpy(MY_SOURCE(tmp_long, i, (data_size * size)), tmp, data_size * size);
+  }
+
+  nvshmemx_putmem_on_stream(sendbuff, tmp_long, data_size * size * nDev,
+                            mype_node, stream);
   CUDA_CHECK(cudaStreamSynchronize(stream));
   nvshmemx_barrier_all_on_stream(stream);
 
   free(tmp);
+  free(tmp_long);
 
   cusetup = clock();
 
@@ -120,9 +128,8 @@ int main(int argc, char *argv[]) {
   void *local_sendbuff = malloc(size * data_size);
   void *local_recvbuff = malloc(size * data_size * nDev);
 
-  CUDACHECK(cudaMemcpyAsync(local_sendbuff,
-                            MY_SOURCE(sendbuff, mype_node, (size * data_size)),
-                            size * data_size, cudaMemcpyDeviceToHost, stream));
+  CUDACHECK(cudaMemcpyAsync(local_sendbuff, sendbuff, size * data_size,
+                            cudaMemcpyDeviceToHost, stream));
   CUDACHECK(cudaMemcpyAsync(local_recvbuff, recvbuff, size * data_size * nDev,
                             cudaMemcpyDeviceToHost, stream));
   CUDA_CHECK(cudaStreamSynchronize(stream));
