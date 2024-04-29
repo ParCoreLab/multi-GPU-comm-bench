@@ -54,8 +54,8 @@ __global__ void broadcast_kernel(void *sendbuff, void *recvbuff, int data_type,
                             (const float *)sendbuff, size, 0);
   }
   if (data_type == options::OPTION_INT) {
-    nvshmemx_int_broadcast(NVSHMEMX_TEAM_NODE, (int *)recvbuff,
-                           (const int *)sendbuff, size, 0);
+    nvshmem_int_broadcast(NVSHMEMX_TEAM_NODE, (int *)recvbuff,
+                          (const int *)sendbuff, size, 0);
   }
 }
 
