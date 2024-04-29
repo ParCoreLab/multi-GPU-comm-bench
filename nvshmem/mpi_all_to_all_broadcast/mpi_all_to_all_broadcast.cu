@@ -177,22 +177,18 @@ void bench_iter(int nDev, int mype, void *sendbuff, void *recvbuff, int size,
                 int data_type, cudaStream_t stream) {
 
   if (data_type == options::OPTION_CHAR) {
-    nvshmemx_char_broadcast_on_stream(
-        NVSHMEMX_TEAM_NODE,
-        (char *)MY_SOURCE(recvbuff, mype, (sizeof(char) * size)),
-        (const char *)sendbuff, size, mype, stream);
+    nvshmemx_char_broadcast_on_stream(NVSHMEMX_TEAM_NODE, (char *)recvbuff,
+                                      (const char *)sendbuff, size, mype,
+                                      stream);
   }
   if (data_type == options::OPTION_FLOAT) {
-    nvshmemx_float_broadcast_on_stream(
-        NVSHMEMX_TEAM_NODE,
-        (float *)MY_SOURCE(recvbuff, mype, (sizeof(float) * size)),
-        (const float *)sendbuff, size, mype, stream);
+    nvshmemx_float_broadcast_on_stream(NVSHMEMX_TEAM_NODE, (float *)recvbuff,
+                                       (const float *)sendbuff, size, mype,
+                                       stream);
   }
   if (data_type == options::OPTION_INT) {
-    nvshmemx_int_broadcast_on_stream(
-        NVSHMEMX_TEAM_NODE,
-        (int *)MY_SOURCE(recvbuff, mype, (sizeof(int) * size)),
-        (const int *)sendbuff, size, mype, stream);
+    nvshmemx_int_broadcast_on_stream(NVSHMEMX_TEAM_NODE, (int *)recvbuff,
+                                     (const int *)sendbuff, size, mype, stream);
   }
 
   nvshmemx_barrier_all_on_stream(stream);
