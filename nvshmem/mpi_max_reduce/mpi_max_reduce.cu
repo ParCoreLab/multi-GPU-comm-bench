@@ -99,13 +99,10 @@ int main(int argc, char *argv[]) {
   sendbuff = nvshmem_malloc(data_size * size);
 
   void *tmp = malloc(data_size * size);
-  if (mype_node == 0) {
-    memset(tmp, 0, data_size * size);
-    random_fill_host(tmp, data_size * size);
+  memset(tmp, 0, data_size * size);
+  random_fill_host(tmp, data_size * size);
 
-    nvshmemx_putmem_on_stream(sendbuff, tmp, data_size * size, mype_node,
-                              stream);
-  }
+  nvshmemx_putmem_on_stream(sendbuff, tmp, data_size * size, mype_node, stream);
   CUDA_CHECK(cudaStreamSynchronize(stream));
   nvshmemx_barrier_all_on_stream(stream);
 
