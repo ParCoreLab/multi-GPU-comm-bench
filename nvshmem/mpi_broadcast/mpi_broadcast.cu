@@ -40,13 +40,14 @@ static struct parser_doc parser_doc;
 
 clock_t start, endparse, cusetup, endwarmup, enditer, c_end;
 
-void bench_iter(int nDev, int mype_node, void *sendbuff, void *recvbuff,
-                int size, int data_type, cudaStream_t s);
+void bench_iter(int nDev, void *sendbuff, void *recvbuff, int size,
+                int data_type, cudaStream_t s);
 
 int main(int argc, char *argv[]) {
   start = clock();
-  build_parser_doc("MPI all to all with nvshmem using collective "
-                   "broadcast operation on the host",
+  build_parser_doc("MPI with nvshmem using collective "
+                   "broadcast operation on the host. Only "
+                   "PE 0 broadcasts",
                    "", "1", "egencer20@ku.edu.tr", &parser_doc);
   argument_parse(&opts, &parser_doc, argc, argv);
 
@@ -94,15 +95,17 @@ int main(int argc, char *argv[]) {
 
   // CUDA_CHECK(cudaMalloc(&(sendbuff), size * data_size));
 
-  recvbuff = nvshmem_malloc(data_size * size * nDev);
+  recvbuff = nvshmem_malloc(data_size * size);
   sendbuff = nvshmem_malloc(data_size * size);
 
   void *tmp = malloc(data_size * size);
-  memset(tmp, 0, data_size * size);
-  random_fill_host(tmp, data_size * size);
+  if (mype_node == 0) {
+    memset(tmp, 0, data_size * size);
+    random_fill_host(tmp, data_size * size);
 
-  nvshmemx_putmem_on_stream(sendbuff, tmp, data_size * size * nDev, mype_node,
-                            stream);
+    nvshmemx_putmem_on_stream(sendbuff, tmp, data_size * size, mype_node,
+                              stream);
+  }
   CUDA_CHECK(cudaStreamSynchronize(stream));
   nvshmemx_barrier_all_on_stream(stream);
 
@@ -111,13 +114,13 @@ int main(int argc, char *argv[]) {
   cusetup = clock();
 
   for (int iter = 0; iter < opts.warmup_iterations; iter++) {
-    bench_iter(nDev, mype_node, sendbuff, recvbuff, size, data_type, stream);
+    bench_iter(nDev, sendbuff, recvbuff, size, data_type, stream);
   }
 
   endwarmup = clock();
 
   for (int iter = 0; iter < opts.iterations; iter++) {
-    bench_iter(nDev, mype_node, sendbuff, recvbuff, size, data_type, stream);
+    bench_iter(nDev, sendbuff, recvbuff, size, data_type, stream);
   }
 
   CUDA_CHECK(cudaStreamSynchronize(stream));
@@ -125,16 +128,16 @@ int main(int argc, char *argv[]) {
 #ifdef DEBUG
 
   void *local_sendbuff = malloc(size * data_size);
-  void *local_recvbuff = malloc(size * data_size * nDev);
+  void *local_recvbuff = malloc(size * data_size);
 
   CUDACHECK(cudaMemcpyAsync(local_sendbuff, sendbuff, size * data_size,
                             cudaMemcpyDeviceToHost, stream));
-  CUDACHECK(cudaMemcpyAsync(local_recvbuff, recvbuff, size * data_size * nDev,
+  CUDACHECK(cudaMemcpyAsync(local_recvbuff, recvbuff, size * data_size,
                             cudaMemcpyDeviceToHost, stream));
   CUDA_CHECK(cudaStreamSynchronize(stream));
 
   REPORT("My data: %d\n", ((int *)local_sendbuff)[0]);
-  for (int k = 0; k < nDev; k++) {
+  for (int k = 0; k < 1; k++) {
     REPORT("Received from peer %d <-> %d\n", k,
            ((int *)(((char *)local_recvbuff) + (k * size * data_size)))[0]);
   }
@@ -173,22 +176,21 @@ int main(int argc, char *argv[]) {
   return 0;
 }
 
-void bench_iter(int nDev, int mype, void *sendbuff, void *recvbuff, int size,
+void bench_iter(int nDev, void *sendbuff, void *recvbuff, int size,
                 int data_type, cudaStream_t stream) {
 
   if (data_type == options::OPTION_CHAR) {
     nvshmemx_char_broadcast_on_stream(NVSHMEMX_TEAM_NODE, (char *)recvbuff,
-                                      (const char *)sendbuff, size, mype,
-                                      stream);
+                                      (const char *)sendbuff, size, 0, stream);
   }
   if (data_type == options::OPTION_FLOAT) {
     nvshmemx_float_broadcast_on_stream(NVSHMEMX_TEAM_NODE, (float *)recvbuff,
-                                       (const float *)sendbuff, size, mype,
+                                       (const float *)sendbuff, size, 0,
                                        stream);
   }
   if (data_type == options::OPTION_INT) {
     nvshmemx_int_broadcast_on_stream(NVSHMEMX_TEAM_NODE, (int *)recvbuff,
-                                     (const int *)sendbuff, size, mype, stream);
+                                     (const int *)sendbuff, size, 0, stream);
   }
 
   nvshmemx_barrier_all_on_stream(stream);
