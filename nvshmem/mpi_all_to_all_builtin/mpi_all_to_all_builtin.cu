@@ -3,9 +3,6 @@
 #include "../../util/argparse.h"
 #include "../../util/mpi_util.h"
 #include "../../util/simple_utils.h"
-#include "host/nvshmem_api.h"
-#include "host/nvshmemx_api.h"
-#include "host/nvshmemx_coll_api.h"
 #include "mpi.h"
 #include "nvshmem.h"
 #include "nvshmemx.h"
@@ -38,8 +35,9 @@ void bench_iter(int nDev, void *sendbuff, void *recvbuff, int size,
 
 int main(int argc, char *argv[]) {
   start = clock();
-  build_parser_doc("MPI all to all with nvshmem using builtin nvshmemx_alltoallmem_on_stream function", "", "1",
-                   "egencer20@ku.edu.tr", &parser_doc);
+  build_parser_doc("MPI all to all with nvshmem using builtin "
+                   "nvshmemx_alltoallmem_on_stream function",
+                   "", "1", "egencer20@ku.edu.tr", &parser_doc);
   argument_parse(&opts, &parser_doc, argc, argv);
 
   int myRank, nRanks, localRank = 0;
@@ -84,7 +82,7 @@ int main(int argc, char *argv[]) {
   CUDA_CHECK(cudaSetDevice(mype_node));
   CUDA_CHECK(cudaStreamCreate(&stream));
 
-  //CUDA_CHECK(cudaMalloc(&(sendbuff), size * data_size));
+  // CUDA_CHECK(cudaMalloc(&(sendbuff), size * data_size));
 
   recvbuff = nvshmem_malloc(data_size * size * nDev);
   sendbuff = nvshmem_malloc(data_size * size);
