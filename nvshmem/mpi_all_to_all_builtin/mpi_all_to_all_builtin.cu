@@ -25,6 +25,9 @@
     }                                                                          \
   } while (0)
 
+#define MY_SOURCE(source, mype, numbytes)                                      \
+  ((void *)(((char *)source) + (mype * numbytes)))
+
 static struct options opts;
 static struct parser_doc parser_doc;
 
@@ -85,13 +88,14 @@ int main(int argc, char *argv[]) {
   // CUDA_CHECK(cudaMalloc(&(sendbuff), size * data_size));
 
   recvbuff = nvshmem_malloc(data_size * size * nDev);
-  sendbuff = nvshmem_malloc(data_size * size);
+  sendbuff = nvshmem_malloc(data_size * size * nDev);
 
   void *tmp = malloc(data_size * size);
   memset(tmp, 0, data_size * size);
   random_fill_host(tmp, data_size * size);
 
-  nvshmemx_putmem_on_stream(sendbuff, tmp, data_size * size, mype_node, stream);
+  nvshmemx_putmem_on_stream(MY_SOURCE(sendbuff, mype_node, (data_size * size)),
+                            tmp, data_size * size, mype_node, stream);
   CUDA_CHECK(cudaStreamSynchronize(stream));
   nvshmemx_barrier_all_on_stream(stream);
 
@@ -116,8 +120,9 @@ int main(int argc, char *argv[]) {
   void *local_sendbuff = malloc(size * data_size);
   void *local_recvbuff = malloc(size * data_size * nDev);
 
-  CUDACHECK(cudaMemcpyAsync(local_sendbuff, sendbuff, size * data_size,
-                            cudaMemcpyDeviceToHost, stream));
+  CUDACHECK(cudaMemcpyAsync(local_sendbuff,
+                            MY_SOURCE(sendbuff, mype_node, (size * data_size)),
+                            size * data_size, cudaMemcpyDeviceToHost, stream));
   CUDACHECK(cudaMemcpyAsync(local_recvbuff, recvbuff, size * data_size * nDev,
                             cudaMemcpyDeviceToHost, stream));
   CUDA_CHECK(cudaStreamSynchronize(stream));
