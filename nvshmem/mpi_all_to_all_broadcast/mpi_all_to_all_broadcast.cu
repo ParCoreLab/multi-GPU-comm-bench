@@ -40,13 +40,13 @@ static struct parser_doc parser_doc;
 
 clock_t start, endparse, cusetup, endwarmup, enditer, c_end;
 
-void bench_iter(int nDev, void *sendbuff, void *recvbuff, int size,
-                int data_type, cudaStream_t s);
+void bench_iter(int nDev, int mype_node, void *sendbuff, void *recvbuff,
+                int size, int data_type, cudaStream_t s);
 
 int main(int argc, char *argv[]) {
   start = clock();
-  build_parser_doc("MPI all to all with nvshmem using builtin "
-                   "nvshmemx_alltoallmem_on_stream function",
+  build_parser_doc("MPI all to all with nvshmem using collective "
+                   "broadcast operation on the host",
                    "", "1", "egencer20@ku.edu.tr", &parser_doc);
   argument_parse(&opts, &parser_doc, argc, argv);
 
@@ -95,36 +95,29 @@ int main(int argc, char *argv[]) {
   // CUDA_CHECK(cudaMalloc(&(sendbuff), size * data_size));
 
   recvbuff = nvshmem_malloc(data_size * size * nDev);
-  sendbuff = nvshmem_malloc(data_size * size * nDev);
+  sendbuff = nvshmem_malloc(data_size * size);
 
   void *tmp = malloc(data_size * size);
-  void *tmp_long = malloc(data_size * size * nDev);
   memset(tmp, 0, data_size * size);
-  memset(tmp_long, 0, data_size * size * nDev);
   random_fill_host(tmp, data_size * size);
 
-  for (int i = 0; i < nDev; i++) {
-    memcpy(MY_SOURCE(tmp_long, i, (data_size * size)), tmp, data_size * size);
-  }
-
-  nvshmemx_putmem_on_stream(sendbuff, tmp_long, data_size * size * nDev,
-                            mype_node, stream);
+  nvshmemx_putmem_on_stream(sendbuff, tmp, data_size * size * nDev, mype_node,
+                            stream);
   CUDA_CHECK(cudaStreamSynchronize(stream));
   nvshmemx_barrier_all_on_stream(stream);
 
   free(tmp);
-  free(tmp_long);
 
   cusetup = clock();
 
   for (int iter = 0; iter < opts.warmup_iterations; iter++) {
-    bench_iter(nDev, sendbuff, recvbuff, size, data_size, stream);
+    bench_iter(nDev, mype_node, sendbuff, recvbuff, size, data_type, stream);
   }
 
   endwarmup = clock();
 
   for (int iter = 0; iter < opts.iterations; iter++) {
-    bench_iter(nDev, sendbuff, recvbuff, size, data_size, stream);
+    bench_iter(nDev, mype_node, sendbuff, recvbuff, size, data_type, stream);
   }
 
   CUDA_CHECK(cudaStreamSynchronize(stream));
@@ -180,11 +173,24 @@ int main(int argc, char *argv[]) {
   return 0;
 }
 
-void bench_iter(int nDev, void *sendbuff, void *recvbuff, int size,
-                int data_size, cudaStream_t stream) {
+void bench_iter(int nDev, int mype, void *sendbuff, void *recvbuff, int size,
+                int data_type, cudaStream_t stream) {
 
-  // start the kernel in each iteration
-  nvshmemx_alltoallmem_on_stream(NVSHMEMX_TEAM_NODE, recvbuff, sendbuff,
-                                 size * data_size, stream);
+  if (data_type == options::OPTION_CHAR) {
+    nvshmemx_char_broadcast_on_stream(
+        NVSHMEMX_TEAM_NODE, MY_SOURCE(recvbuff, mype, (sizeof(char) * size)),
+        sendbuff, size, mype, stream);
+  }
+  if (data_type == options::OPTION_FLOAT) {
+    nvshmemx_float_broadcast_on_stream(
+        NVSHMEMX_TEAM_NODE, MY_SOURCE(recvbuff, mype, (sizeof(float) * size)),
+        sendbuff, size, mype, stream);
+  }
+  if (data_type == options::OPTION_INT) {
+    nvshmemx_int_broadcast_on_stream(
+        NVSHMEMX_TEAM_NODE, MY_SOURCE(recvbuff, mype, (sizeof(int) * size)),
+        sendbuff, size, mype, stream);
+  }
+
   nvshmemx_barrier_all_on_stream(stream);
 }
