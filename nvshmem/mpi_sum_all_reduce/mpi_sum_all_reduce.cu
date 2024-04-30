@@ -1,3 +1,9 @@
+/*
+This NVSHMEM MPI Benchmark uses nvshmemx_all_to_all host function.
+Each device send the same data to each peer, and if DEBUG is defined
+prints the received messages.
+*/
+
 #include "../../cuda_util/cuda_util.h"
 #include "../../cuda_util/random_fill.h"
 #include "../../util/argparse.h"
@@ -7,6 +13,7 @@
 #include "nvshmem.h"
 #include "nvshmemx.h"
 #include <cstdlib>
+#include <cstring>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -25,6 +32,9 @@
     }                                                                          \
   } while (0)
 
+#define MY_SOURCE(source, mype, numbytes)                                      \
+  ((void *)(((char *)source) + (mype * numbytes)))
+
 static struct options opts;
 static struct parser_doc parser_doc;
 
@@ -33,35 +43,12 @@ clock_t start, endparse, cusetup, endwarmup, enditer, c_end;
 void bench_iter(int nDev, void *sendbuff, void *recvbuff, int size,
                 int data_type, cudaStream_t s);
 
-__global__ void all_to_all_kernel(void *sendbuff, void *recvbuff, int size,
-                                  int data_type) {
-  int mype = nvshmem_my_pe();
-  int npes = nvshmem_n_pes();
-
-  for (int peer = 0; peer < npes; peer++) {
-    if (peer != mype) {
-      switch (data_type) {
-      case options::OPTION_CHAR:
-        nvshmem_char_put(((char *)(recvbuff)) + (size * mype),
-                         (const char *)sendbuff, size, peer);
-        break;
-      case options::OPTION_INT:
-        nvshmem_int_put(((int *)(recvbuff)) + (size * mype),
-                        (const int *)sendbuff, size, peer);
-        break;
-      case options::OPTION_FLOAT:
-        nvshmem_float_put(((float *)(recvbuff)) + (size * mype),
-                          (const float *)sendbuff, size, peer);
-        break;
-      }
-    }
-  }
-}
-
 int main(int argc, char *argv[]) {
   start = clock();
-  build_parser_doc("MPI all to all with nvshmem", "", "1",
-                   "egencer20@ku.edu.tr", &parser_doc);
+  build_parser_doc("MPI with nvshmem using collective "
+                   "broadcast operation on the host. Only "
+                   "PE 0 broadcasts",
+                   "", "1", "egencer20@ku.edu.tr", &parser_doc);
   argument_parse(&opts, &parser_doc, argc, argv);
 
   int myRank, nRanks, localRank = 0;
@@ -106,16 +93,18 @@ int main(int argc, char *argv[]) {
   CUDA_CHECK(cudaSetDevice(mype_node));
   CUDA_CHECK(cudaStreamCreate(&stream));
 
+  // CUDA_CHECK(cudaMalloc(&(sendbuff), size * data_size));
+
+  recvbuff = nvshmem_malloc(data_size * size);
   sendbuff = nvshmem_malloc(data_size * size);
-  recvbuff = nvshmem_malloc(data_size * size * nDev);
 
   void *tmp = malloc(data_size * size);
   memset(tmp, 0, data_size * size);
   random_fill_host(tmp, data_size * size);
 
   nvshmemx_putmem_on_stream(sendbuff, tmp, data_size * size, mype_node, stream);
-  nvshmemx_barrier_all_on_stream(stream);
   CUDA_CHECK(cudaStreamSynchronize(stream));
+  nvshmemx_barrier_all_on_stream(stream);
 
   free(tmp);
 
@@ -136,19 +125,16 @@ int main(int argc, char *argv[]) {
 #ifdef DEBUG
 
   void *local_sendbuff = malloc(size * data_size);
-  void *local_recvbuff = malloc(size * data_size * nDev);
+  void *local_recvbuff = malloc(size * data_size);
 
   CUDACHECK(cudaMemcpyAsync(local_sendbuff, sendbuff, size * data_size,
                             cudaMemcpyDeviceToHost, stream));
-  CUDACHECK(cudaMemcpyAsync(local_recvbuff, recvbuff, size * data_size * nDev,
+  CUDACHECK(cudaMemcpyAsync(local_recvbuff, recvbuff, size * data_size,
                             cudaMemcpyDeviceToHost, stream));
   CUDA_CHECK(cudaStreamSynchronize(stream));
 
   REPORT("My data: %d\n", ((int *)local_sendbuff)[0]);
-  for (int k = 0; k < nDev; k++) {
-    REPORT("Received from peer %d <-> %d\n", k,
-           ((int *)(((char *)local_recvbuff) + (k * size * data_size)))[0]);
-  }
+  REPORT("The max is: <-> %d\n", ((int *)local_recvbuff)[0]);
 
 #endif
 
@@ -187,7 +173,18 @@ int main(int argc, char *argv[]) {
 void bench_iter(int nDev, void *sendbuff, void *recvbuff, int size,
                 int data_type, cudaStream_t stream) {
 
-  // start the kernel in each iteration
-  all_to_all_kernel<<<1, 1, 0, stream>>>(sendbuff, recvbuff, size, data_type);
+  if (data_type == options::OPTION_CHAR) {
+    nvshmemx_char_sum_reduce_on_stream(NVSHMEMX_TEAM_NODE, (char *)recvbuff,
+                                       (const char *)sendbuff, size, stream);
+  }
+  if (data_type == options::OPTION_FLOAT) {
+    nvshmemx_float_sum_reduce_on_stream(NVSHMEMX_TEAM_NODE, (float *)recvbuff,
+                                        (const float *)sendbuff, size, stream);
+  }
+  if (data_type == options::OPTION_INT) {
+    nvshmemx_int_sum_reduce_on_stream(NVSHMEMX_TEAM_NODE, (int *)recvbuff,
+                                      (const int *)sendbuff, size, stream);
+  }
+
   nvshmemx_barrier_all_on_stream(stream);
 }
