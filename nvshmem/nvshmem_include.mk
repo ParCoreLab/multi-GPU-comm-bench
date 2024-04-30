@@ -25,8 +25,12 @@ MPI_INCLUDE ?= $(MPI_HOME)/include
 CUDA_PATH := $(shell echo $$CUDA_PATH)
 
 ifeq ($(strip $(CUDA_PATH)),)
-    $(warning CUDA_PATH not set, using /opt/cuda by default)
-    CUDA_PATH := /opt/cuda
+    $(warning CUDA_PATH not set, using $$CUDA_HOME by default)
+    CUDA_PATH := $(shell echo $$CUDA_HOME)
+    ifeq ($(strip $(CUDA_PATH)),)
+        $(warning CUDA_PATH not set, using /opt/cuda by default)
+        CUDA_PATH := /opt/cuda
+    endif
 endif
 
 
@@ -35,6 +39,6 @@ CUDA_INCLUDE ?= $(CUDA_PATH)/include
 CUDA_LIB ?= $(CUDA_PATH)/lib
 
 INCLUDES := -I$(NVSHMEM_INCLUDE) -I$(CUDA_INCLUDE) -I$(MPI_INCLUDE)
-LIBS := -L$(NVSHMEM_LIB) -L$(CUDA_LIB) -L$(MPI_LIB)
+LIBS := -L$(NVSHMEM_LIB) -L$(CUDA_LIB) -L$(MPI_LIB) -L$(NVSHMEM_LIB)64 -L$(CUDA_LIB)64 -L$(MPI_LIB)64
 
 LD := -lnvshmem_host -lnvshmem_device -lmpi
