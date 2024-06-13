@@ -41,4 +41,4 @@ CUDA_LIB ?= $(CUDA_PATH)/lib
 INCLUDES := -I$(NVSHMEM_INCLUDE) -I$(CUDA_INCLUDE) -I$(MPI_INCLUDE)
 LIBS := -L$(NVSHMEM_LIB) -L$(CUDA_LIB) -L$(MPI_LIB) -L$(NVSHMEM_LIB)64 -L$(CUDA_LIB)64 -L$(MPI_LIB)64
 
-LD := -lnvshmem_host -lnvshmem_device -lmpi
+LD := -lnvidia-ml -lnvshmem_host -lnvshmem_device -lmpi
